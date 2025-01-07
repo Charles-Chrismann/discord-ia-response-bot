@@ -1,0 +1,21 @@
+{
+  "name": "ollama",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "discord.js-selfbot-v13": "^3.4.6",
+    "dotenv": "^16.4.7",
+    "ollama": "^0.5.11",
+    "zod-to-json-schema": "^3.24.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5"
+  }
+}
