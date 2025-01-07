@@ -15,7 +15,7 @@ function checkValidity(message: Message) {
 }
 
 function saveConvs() {
-  fs.writeFileSync(process.env.CONVS_PATH as string, JSON.stringify(convs))
+  fs.writeFileSync(process.env.CONVS_PATH as string, JSON.stringify(convs, null, 2))
 }
 
 function getConvs() {
@@ -57,12 +57,12 @@ client.on("messageCreate", async message => {
   let data: {messageToSendBack: string} | undefined = undefined
 
   let output: ChatResponse | undefined = undefined
-  output = await ollama.chat({ model: "llama3.2:1b", messages: userConv, format: zodToJsonSchema(format) })
+  output = await ollama.chat({ model: "llama3.2:1b", messages: [...userConv], format: zodToJsonSchema(format) })
   data = JSON.parse(output.message.content)
   userConv.push(output.message as convMsg)
   
-  await message.reply(data!.messageToSendBack)
   saveConvs()
+  await message.reply(data!.messageToSendBack)
 });
 
 client.login(process.env.TOKEN);
