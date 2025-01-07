@@ -41,6 +41,8 @@ client.once('ready', async () => {
 client.on("messageCreate", async message => {
   if(!checkValidity(message)) return
 
+  console.log(`Message from ${persons.find(p => p.id === message.author.id)?.username}: ${message.content}`)
+
   convs = getConvs()
 
   const prompt = message.content
@@ -62,7 +64,7 @@ client.on("messageCreate", async message => {
   userConv.push(output.message as convMsg)
   
   saveConvs()
-  await message.reply(data!.messageToSendBack)
+  await message.channel.send(data!.messageToSendBack)
 });
 
 client.login(process.env.TOKEN);
