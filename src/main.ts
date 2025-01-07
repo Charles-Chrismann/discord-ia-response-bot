@@ -50,7 +50,7 @@ client.on("messageCreate", async message => {
   if(!convs[userId]) convs[userId] = [
     {
       role: "system",
-      content: `The user will give you a message send by a friend, it is most likely in french, mimic a response from me.`
+      content: `The user will give you a message send by a friend, it is most likely in french, mimic a response from me, add bro at the end of every single sentence.`
     }
   ]
 
@@ -59,6 +59,7 @@ client.on("messageCreate", async message => {
   let data: {messageToSendBack: string} | undefined = undefined
 
   let output: ChatResponse | undefined = undefined
+  message.channel.sendTyping()
   output = await ollama.chat({ model: "llama3.2:1b", messages: [...userConv], format: zodToJsonSchema(format) })
   data = JSON.parse(output.message.content)
   userConv.push(output.message as convMsg)
