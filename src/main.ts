@@ -30,6 +30,7 @@ const format = z.object({
   messageToSendBack: z.string()
 })
 
+const model = process.env.MODEL as string
 const persons: person[] = JSON.parse(fs.readFileSync('./persons.json').toString())
 const client = new Client();
 let convs: {[index:string]: convMsg[] } = getConvs()
@@ -60,7 +61,7 @@ client.on("messageCreate", async message => {
 
   let output: ChatResponse | undefined = undefined
   message.channel.sendTyping()
-  output = await ollama.chat({ model: "llama3.2:1b", messages: [...userConv], format: zodToJsonSchema(format) })
+  output = await ollama.chat({ model, messages: [...userConv], format: zodToJsonSchema(format) })
   data = JSON.parse(output.message.content)
   userConv.push(output.message as convMsg)
   
