@@ -1,72 +1,68 @@
 import 'dotenv/config'
-import * as fs from 'fs'
-import { Client, type Message } from "discord.js-selfbot-v13";
+import { Client } from "discord.js-selfbot-v13";
 import ollama, { ChatResponse } from 'ollama';
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
+import { checkValidity, getConvs, makeSystemMessage, readJson, saveConvs } from './utils';
+import { convMsg, person } from './interfaces';
 
-interface person { username: string, id: string, channelId: string }
-interface convMsg { role: "system" | "user" | "assistant", content: string }
-
-function checkValidity(message: Message) {
-  const person = persons.find(p => p.id === message.author.id)
-  if(!person) return false
-  return person.channelId === message.channelId
-}
-
-function saveConvs() {
-  fs.writeFileSync(process.env.CONVS_PATH as string, JSON.stringify(convs, null, 2))
-}
-
-function getConvs() {
-  try {
-    return JSON.parse(fs.readFileSync('./generated/convs.json').toString())
-  } catch (e) {
-    return {}
-  }
-}
+const CONVS_PATH = process.env.CONVS_PATH as string
+const PERSONS_PATH = process.env.PERSONS_PATH as string
+const GIFS_PATH = process.env.GIFS_PATH as string
 
 const format = z.object({
-  messageToSendBack: z.string()
+  messageToSendBack: z.string(),
+  gifUrlToSendAfterMessage: z.nullable(z.string())
 })
 
 const model = process.env.MODEL as string
-const persons: person[] = JSON.parse(fs.readFileSync('./persons.json').toString())
+const persons: person[] = readJson(PERSONS_PATH)
 const client = new Client();
-let convs: {[index:string]: convMsg[] } = getConvs()
+let convs: {[index:string]: convMsg[] } = getConvs(CONVS_PATH)
+const convMap = new Map<string, string>()
+
+console.log(makeSystemMessage(GIFS_PATH))
 
 client.once('ready', async () => {
   console.log(`${client.user!.username} is ready!`);
 });
 
 client.on("messageCreate", async message => {
-  if(!checkValidity(message)) return
+  if(!checkValidity(message, persons)) return
 
   console.log(`Message from ${persons.find(p => p.id === message.author.id)?.username}: ${message.content}`)
-
-  convs = getConvs()
 
   const prompt = message.content
   const userId = message.author.id
   if(!convs[userId]) convs[userId] = [
     {
       role: "system",
-      content: `The user will give you a message send by a friend, it is most likely in french, mimic a response from me, add bro at the end of every single sentence.`
+      content: makeSystemMessage(GIFS_PATH)
     }
   ]
 
   const userConv = convs[userId]
-  userConv.push({ role: "user", content: prompt })
-  let data: {messageToSendBack: string} | undefined = undefined
+  const interactionId = crypto.randomUUID()
+  if(convMap.has(userId) && userConv.at(-1) && userConv.at(-1)!.role === "user") userConv.at(-1)!.content += `\n\n${prompt}`
+  else {
+    message.channel.sendTyping()
+    userConv.push({ role: "user", content: prompt })
+  }
 
-  let output: ChatResponse | undefined = undefined
-  message.channel.sendTyping()
-  output = await ollama.chat({ model, messages: [...userConv], format: zodToJsonSchema(format) })
-  data = JSON.parse(output.message.content)
+  convMap.set(userId, interactionId)
+
+  const output = await ollama.chat({ model, messages: [...userConv], format: zodToJsonSchema(format) })
+  if(convMap.get(userId) !== interactionId) return
+  convMap.delete(userId)
+  let data: {messageToSendBack: string, gifUrlToSendAfterMessage: string} = JSON.parse(output.message.content)
   userConv.push(output.message as convMsg)
   
-  saveConvs()
+  saveConvs(CONVS_PATH, convs)
   await message.channel.send(data!.messageToSendBack)
+  if(
+    data!.gifUrlToSendAfterMessage &&
+    data!.gifUrlToSendAfterMessage !== ""
+  ) await message.channel.send(data!.gifUrlToSendAfterMessage)
 });
 
 client.login(process.env.TOKEN);
